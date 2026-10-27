@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ensalamento 2027-1</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS para ler e gerar arquivos Excel .xlsx -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Ícones FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #7b8189;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #d1d5db;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #6b7280;
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+        .card-drop-active {
+            background-color: #dbeafe !important;
+            border: 2px dashed #2563eb !important;
+        }
+        .ens-card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.25), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+        .ens-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.35);
+        }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col select-none">
+
+    <!-- Topbar Superior Branca -->
+    <header class="bg-white border-b border-slate-300 px-4 py-2 flex flex-wrap items-center justify-between gap-2 shadow-xs shrink-0 z-30">
+        <div class="flex items-center gap-3">
+            <button onclick="toggleRightDrawer()" class="text-slate-700 hover:text-blue-700 p-1.5 rounded-lg hover:bg-slate-100 transition" title="Abrir/Fechar Navegador de Cursos">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-lg bg-slate-900 text-sky-400 flex items-center justify-center shadow-inner">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 leading-none">Ensalamento 2027-1</h1>
+                    <span class="text-[11px] text-slate-500 font-medium">Gestão Acadêmica de Salas e Horários</span>
+                </div>
+            </div>
+
+            <!-- Alternador de Visão Principal (Grade vs Blocos) -->
+            <div class="hidden sm:flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 ml-4">
+                <button id="btnViewGrid" onclick="switchMainView('grid')" class="px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 bg-blue-600 text-white shadow-xs">
+                    <i class="fa-solid fa-table-columns"></i> Grade de Horários
+                </button>
+                <button id="btnViewBlocks" onclick="switchMainView('blocks')" class="px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 text-slate-700 hover:bg-slate-200">
+                    <i class="fa-solid fa-building"></i> Mapa de Salas (Por Bloco)
+                </button>
+            </div>
+        </div>
+
+        <div class="flex items-center flex-wrap gap-2">
+            <!-- Botão Mostrar/Ocultar Informações da Sala -->
+            <button id="btnToggleRoomInfo" onclick="toggleRoomDetails()" class="px-3 py-1.5 rounded-full text-xs font-bold border transition flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100">
+                <i class="fa-solid fa-eye" id="iconRoomInfo"></i>
+                <span id="txtRoomInfo">Ocultar Info da Sala</span>
+            </button>
+
+            <!-- Nova Aula / Modal -->
+            <button onclick="openNewCourseModal()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-1.5 shadow-xs">
+                <i class="fa-solid fa-plus"></i> Nova Aula
+            </button>
+
+            <!-- Importar Planilha Cronograma -->
+            <label class="cursor-pointer px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition flex items-center gap-1.5" title="Importar cronograma de aulas (.xlsx)">
+                <i class="fa-solid fa-file-import text-blue-600"></i> Importar Cronograma
+                <input type="file" id="inputCronograma" accept=".xlsx,.xls" class="hidden" onchange="handleImportCronograma(event)">
+            </label>
+
+            <!-- Importar Planilha Salas -->
+            <label class="cursor-pointer px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition flex items-center gap-1.5" title="Importar mapa geral de salas (.xlsx)">
+                <i class="fa-solid fa-map-location-dot text-amber-600"></i> Importar Salas
+                <input type="file" id="inputSalas" accept=".xlsx,.xls" class="hidden" onchange="handleImportSalas(event)">
+            </label>
+
+            <!-- Exportar Excel -->
+            <button onclick="exportCronogramaXLSX()" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 shadow-xs" title="Baixar planilha Excel atualizada">
+                <i class="fa-solid fa-file-excel"></i> Exportar .XLSX
+            </button>
+
+            <button onclick="toggleRightDrawer()" class="px-2.5 py-1.5 rounded-lg border border-blue-500 text-blue-600 hover:bg-blue-50 text-xs font-bold flex items-center gap-1 ml-1">
+                <i class="fa-solid fa-sitemap"></i> Cursos
+            </button>
+        </div>
+    </header>
+
+    <!-- Barra de Filtros e Ferramentas (Faixa Cinza Superior) -->
+    <div class="bg-[#71767d] text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-md shrink-0 z-20">
+        <div class="flex items-center gap-2.5 flex-wrap">
+            <div class="flex items-center gap-1.5 font-semibold text-xs tracking-wide mr-1">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span>Horário de Aula & Alocação</span>
+            </div>
+
+            <select id="filterCourse" onchange="handleFilterChange('course')" class="bg-white text-slate-800 text-xs font-bold px-2.5 py-1.5 rounded-md border border-slate-300 shadow-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="ALL">📚 Todos os Cursos (Juntos)</option>
+            </select>
+
+            <select id="filterTurno" onchange="handleFilterChange('turno')" class="bg-white text-slate-800 text-xs font-bold px-2.5 py-1.5 rounded-md border border-slate-300 shadow-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="ALL">🌙 Todos os Turnos</option>
+                <option value="Noturno">Noturno</option>
+                <option value="Integral">Integral</option>
+                <option value="Matutino">Matutino</option>
+            </select>
+
+            <select id="filterSerie" onchange="handleFilterChange('serie')" class="bg-white text-slate-800 text-xs font-bold px-2.5 py-1.5 rounded-md border border-slate-300 shadow-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="ALL">🎓 Todas as Séries/Termos</option>
+            </select>
+
+            <select id="filterBloco" onchange="handleFilterChange('bloco')" class="bg-white text-slate-800 text-xs font-bold px-2.5 py-1.5 rounded-md border border-slate-300 shadow-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="ALL">🏢 Todos os Blocos</option>
+            </select>
+
+            <div class="relative">
+                <input type="text" id="filterSearch" oninput="applyFilters()" placeholder="Buscar disciplina, código ou sala..." class="bg-white text-slate-800 text-xs font-medium px-3 py-1.5 pl-7 rounded-md border border-slate-300 w-52 sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs absolute left-2.5 top-2.5"></i>
+            </div>
+
+            <button onclick="resetAllFilters()" class="text-xs bg-slate-800 hover:bg-slate-900 text-white font-semibold px-3 py-1.5 rounded-md transition flex items-center gap-1.5 shadow-xs" title="Limpar todos os filtros">
+                <i class="fa-solid fa-filter-circle-xmark"></i> Limpar
+            </button>
+        </div>
+
+        <div class="flex items-center gap-3 text-xs">
+            <span id="statsCounter" class="bg-slate-900/80 px-2.5 py-1 rounded-md font-bold text-white border border-slate-600">0 disciplinas exibidas</span>
+            <button onclick="resetToFactoryData()" class="text-slate-200 hover:text-white underline text-xs" title="Restaurar dados padrão de exemplo">Restaurar Padrão</button>
+        </div>
+    </div>
+
+    <!-- Área Principal de Conteúdo -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- VISÃO 1: GRADE SEMANAL + COLUNA A DEFINIR -->
+        <main id="viewGridContainer" class="flex-1 flex overflow-hidden bg-[#7b8189]">
+
+            <!-- Coluna Esquerda: A Definir / Sem Dia -->
+            <aside id="unassignedPanel" class="w-72 bg-[#e2e5e9] border-r border-slate-400/80 flex flex-col shrink-0 shadow-md">
+                <div class="p-3 bg-[#ced3d9] border-b border-slate-400 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                            <i class="fa-solid fa-inbox text-amber-600 text-sm"></i> A Definir / Sem Dia
+                        </h3>
+                        <p class="text-[11px] text-slate-600">Arraste para um dia da semana</p>
+                    </div>
+                    <span id="unassignedBadge" class="bg-amber-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-xs">0</span>
+                </div>
+                <div id="unassignedDropZone"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleDropOnDay(event, 'A Definir', '')"
+                     class="flex-1 p-2.5 overflow-y-auto custom-scroll space-y-2 bg-[#e2e5e9]">
+                </div>
+            </aside>
+
+            <!-- Área Central da Tabela Semanal -->
+            <section class="flex-1 overflow-auto custom-scroll p-3.5 bg-[#7b8189]">
+                <div class="bg-[#ced3d9] rounded-xl shadow-lg border border-slate-400 overflow-hidden min-w-[1000px]">
+
+                    <!-- Cabeçalho dos Dias da Semana -->
+                    <div class="grid grid-cols-7 bg-[#b9bfc7] border-b border-slate-400 py-3 px-2 font-bold text-xs text-slate-800 text-center uppercase tracking-wide">
+                        <div class="flex flex-col items-center justify-center border-r border-slate-400/80 pr-1">
+                            <span id="currentScopeLabel" class="truncate max-w-[130px] font-bold text-slate-900">Todos os Cursos</span>
+                            <span class="text-[10px] text-slate-600 font-normal normal-case">Horário de Aula</span>
+                        </div>
+                        <div class="border-r border-slate-300">Segunda-Feira</div>
+                        <div class="border-r border-slate-300">Terça-Feira</div>
+                        <div class="border-r border-slate-300">Quarta-Feira</div>
+                        <div class="border-r border-slate-300">Quinta-Feira</div>
+                        <div class="border-r border-slate-300">Sexta-Feira</div>
+                        <div>Sábado</div>
+                    </div>
+
+                    <!-- Linhas Dinâmicas de Horário -->
+                    <div id="timetableRowsContainer" class="divide-y divide-slate-400/80 bg-[#dbe0e6]">
+                    </div>
+
+                </div>
+            </section>
+        </main>
+
+        <!-- VISÃO 2: MAPA DE SALAS POR BLOCO -->
+        <main id="viewBlocksContainer" class="hidden flex-1 flex-col overflow-hidden bg-slate-100">
+            <div class="bg-white border-b border-slate-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                <div class="flex items-center gap-1.5 overflow-x-auto py-1 custom-scroll" id="blockTabsBar">
+                </div>
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="flex items-center gap-1.5 font-medium"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Livre / Compatível</span>
+                    <span class="flex items-center gap-1.5 font-medium"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> Cap. Expandida</span>
+                    <span class="flex items-center gap-1.5 font-medium"><span class="w-3 h-3 rounded-full bg-rose-600 inline-block"></span> Lotada / Conflito</span>
+                    <button onclick="openNewRoomModal()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center gap-1.5 shadow-xs">
+                        <i class="fa-solid fa-plus"></i> Nova Sala
+                    </button>
+                </div>
+            </div>
+
+            <div id="blocksGridContent" class="flex-1 overflow-y-auto custom-scroll p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            </div>
+        </main>
+
+        <!-- Painel Lateral Retrátil de Cursos / Séries -->
+        <aside id="rightTreeDrawer" class="w-80 bg-white border-l border-slate-300 shadow-2xl flex flex-col shrink-0 z-30 transition-all duration-200">
+            <div class="p-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <div class="relative flex-1 mr-2">
+                    <input type="text" id="treeSearchInput" oninput="renderRightTree()" placeholder="Filtrar curso ou termo (ex: odon)..." class="w-full text-xs border border-slate-300 rounded-md px-2.5 py-1.5 pr-7 focus:outline-none focus:border-blue-500">
+                    <button onclick="clearTreeSearch()" class="absolute right-2 top-2 text-slate-400 hover:text-rose-500 text-xs">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <button onclick="toggleRightDrawer()" class="text-slate-500 hover:text-slate-800 p-1" title="Fechar navegador">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <div class="px-3 py-2 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+                <button onclick="selectCourseTreeItem('ALL', 'ALL', 'ALL')" class="text-xs font-bold text-blue-700 hover:underline flex items-center gap-1.5">
+                    <i class="fa-solid fa-layer-group"></i> Mostrar Todos os Cursos Juntos
+                </button>
+                <span class="text-[11px] text-slate-500 font-semibold">Ourinhos (Unifio)</span>
+            </div>
+
+            <div id="courseTreeContainer" class="flex-1 overflow-y-auto custom-scroll p-3 text-xs space-y-1">
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- MODAL DE EDIÇÃO DE DISCIPLINA & SALA -->
+    <div id="editModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-300 flex flex-col">
+            <div class="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between">
+                <h3 class="font-bold text-sm flex items-center gap-2" id="modalTitle">
+                    <i class="fa-solid fa-pen-to-square text-sky-400"></i> Detalhes da Disciplina & Sala
+                </h3>
+                <button onclick="closeEditModal()" class="text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4 max-h-[80vh] overflow-y-auto custom-scroll text-xs">
+                <input type="hidden" id="modalItemId">
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="sm:col-span-2">
+                        <label class="block font-bold text-slate-700 mb-1">Curso</label>
+                        <input type="text" id="modalCurso" class="w-full border border-slate-300 rounded-md px-2.5 py-1.5 font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ex: Direito">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Turno</label>
+                        <select id="modalTurno" class="w-full border border-slate-300 rounded-md px-2.5 py-1.5 font-medium">
+                            <option value="Noturno">Noturno</option>
+                            <option value="Integral">Integral</option>
+                            <option value="Matutino">Matutino</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Série / Termo</label>
+                        <input type="number" id="modalSerie" class="w-full border border-slate-300 rounded-md px-2.5 py-1.5 font-medium" placeholder="Ex: 7">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Código Disciplina</label>
+                        <input type="text" id="modalCodigo" class="w-full border border-slate-300 rounded-md px-2.5 py-1.5 font-medium" placeholder="Ex: DIR701">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block font-bold text-slate-700 mb-1">Nome da Disciplina</label>
+                        <input type="text" id="modalDisciplina" class="w-full border border-slate-300 rounded-md px-2.5 py-1.5 font-medium" placeholder="Ex: Prática Jurídica Cível">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Dia da Semana</label>
+                        <select id="modalDia" onchange="updateSuggestedRoomsInModal()" class="w-full border border-slate-300 rounded-md px-2 py-1.5 bg-white font-medium">
+                            <option value="A Definir">A Definir</option>
+                            <option value="Segunda-Feira">Segunda-Feira</option>
+                            <option value="Terça-Feira">Terça-Feira</option>
+                            <option value="Quarta-Feira">Quarta-Feira</option>
+                            <option value="Quinta-Feira">Quinta-Feira</option>
+                            <option value="Sexta-Feira">Sexta-Feira</option>
+                            <option value="Sábado">Sábado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Horário da Aula</label>
+                        <select id="modalHorario" onchange="updateSuggestedRoomsInModal()" class="w-full border border-slate-300 rounded-md px-2 py-1.5 bg-white font-medium">
+                            <option value="19:15 às 22:50">19:15 às 22:50 (Noturno Completo)</option>
+                            <option value="19:15 às 20:55">19:15 às 20:55 (1º Bloco Noturno)</option>
+                            <option value="21:10 às 22:50">21:10 às 22:50 (2º Bloco Noturno)</option>
+                            <option value="08:20 às 11:50">08:20 às 11:50 (Matutino)</option>
+                            <option value="13:20 às 16:50">13:20 às 16:50 (Vespertino)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Qtd. Alunos (Turma)</label>
+                        <input type="number" id="modalAlunos" oninput="updateSuggestedRoomsInModal()" class="w-full border border-slate-300 rounded-md px-2.5 py-1.5 bg-white font-bold text-blue-700" placeholder="50">
+                    </div>
+                </div>
+
+                <div class="bg-blue-50/80 p-3.5 rounded-lg border border-blue-200 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="font-bold text-blue-900 flex items-center gap-1.5">
+                            <i class="fa-solid fa-door-open"></i> Sala / Ambiente Alocado
+                        </label>
+                        <span id="modalRoomStatusPill" class="text-[11px] font-bold px-2 py-0.5 rounded-full"></span>
+                    </div>
+                    <select id="modalAmbiente" onchange="updateRoomPreviewBanner()" class="w-full border border-blue-300 rounded-md px-3 py-2 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </select>
+                    <div id="modalRoomDetailsBanner" class="text-[11px] text-slate-600 bg-white p-2 rounded-md border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="sm:col-span-2">
+                        <label class="block font-bold text-slate-700 mb-1">Docente / Observação</label>
+                        <input type="text" id="modalObs" class="w-full border border-slate-300 rounded-md px-2.5 py-1.5 font-medium" placeholder="Ex: Prof. Dr. Silva">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Cor do Card</label>
+                        <select id="modalColor" class="w-full border border-slate-300 rounded-md px-2.5 py-1.5 font-medium">
+                            <option value="#8c2d38">Bordô Institucional</option>
+                            <option value="#363b74">Azul Índigo</option>
+                            <option value="#2c6b9e">Azul Petróleo</option>
+                            <option value="#1b796a">Verde Esmeralda</option>
+                            <option value="#638436">Verde Oliva</option>
+                            <option value="#a88434">Dourado Mostarda</option>
+                            <option value="#682973">Roxo Profundo</option>
+                            <option value="#523f38">Marrom Café</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 px-5 py-3 border-t border-slate-200 flex items-center justify-between">
+                <button id="btnDeleteCourse" onclick="deleteCurrentModalCourse()" class="px-3 py-1.5 rounded-md text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-1 transition">
+                    <i class="fa-solid fa-trash-can"></i> Excluir
+                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="closeEditModal()" class="px-4 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-200 transition">Cancelar</button>
+                    <button onclick="saveModalCourse()" class="px-5 py-1.5 rounded-md text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow transition">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CADASTRO DE NOVA SALA -->
+    <div id="newRoomModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-300">
+            <div class="bg-slate-900 text-white px-5 py-3 flex items-center justify-between">
+                <h3 class="font-bold text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-building-circle-check text-amber-400"></i> Cadastrar Sala no Mapa
+                </h3>
+                <button onclick="closeNewRoomModal()" class="text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-3 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Bloco</label>
+                    <select id="roomModalBloco" class="w-full border border-slate-300 rounded-md px-2.5 py-1.5">
+                        <option value="Central 01">Central 01</option>
+                        <option value="Central 02">Central 02</option>
+                        <option value="Central 03">Central 03</option>
+                        <option value="Central 04">Central 04</option>
+                        <option value="Central 05">Central 05</option>
+                        <option value="Central 06">Central 06</option>
+                        <option value="Central 07">Central 07</option>
+                        <option value="Central L">Central L</option>
+                        <option value="Centro Vet.">Centro Vet.</option>
+                        <option value="AV: Remoto / Externo">AV: Remoto / Externo</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Identificador da Sala / Ambiente</label>
+                    <input type="text" id="roomModalNome" class="w-full border border-slate-300 rounded-md px-2.5 py-1.5" placeholder="Ex: Central 04 - Sala 403">
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Área (m²)</label>
+                        <input type="number" step="0.1" id="roomModalArea" class="w-full border border-slate-300 rounded-md px-2 py-1.5" placeholder="65">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Cap. Atual</label>
+                        <input type="number" id="roomModalCapAtual" class="w-full border border-slate-300 rounded-md px-2 py-1.5" placeholder="60">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Cap. Exp.</label>
+                        <input type="number" id="roomModalCapExp" class="w-full border border-slate-300 rounded-md px-2 py-1.5" placeholder="58">
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-100 px-5 py-3 border-t border-slate-200 flex justify-end gap-2">
+                <button onclick="closeNewRoomModal()" class="px-4 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-200">Cancelar</button>
+                <button onclick="saveNewRoom()" class="px-4 py-1.5 rounded-md text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white">Salvar Sala</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notificação Flutuante (Toast) -->
+    <div id="toastNotification" class="fixed bottom-4 left-4 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2.5 z-50 transition-all duration-300 opacity-0 pointer-events-none translate-y-2">
+        <i class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+        <span id="toastText">Operação realizada com sucesso!</span>
+    </div>
+
+    <!-- LÓGICA PRINCIPAL JAVASCRIPT -->
+    <script>
+        // Paleta de cores características do ensalamento
+        const SYSCLASS_PALETTE = [
+            "#8c2d38", // Bordô
+            "#363b74", // Azul Índigo
+            "#2c6b9e", // Azul Petróleo
+            "#1b796a", // Verde Esmeralda
+            "#638436", // Verde Oliva
+            "#a88434", // Dourado Mostarda
+            "#682973", // Roxo Profundo
+            "#523f38"  // Marrom Café
+        ];
+
+        // Base de Salas Iniciais (UNIFIO)
+        const INITIAL_ROOMS = [
+            { id: "r1", bloco: "Central 01", ambiente: "Central 01 - Sala 01", area: 48.9, capAtual: 45, capExp: 41 },
+            { id: "r2", bloco: "Central 01", ambiente: "Central 01 - Sala 02", area: 49.0, capAtual: 45, capExp: 41 },
+            { id: "r3", bloco: "Central 01", ambiente: "Central 01 - Lab. Info 01", area: 60.0, capAtual: 40, capExp: 45 },
+            { id: "r4", bloco: "Central 02", ambiente: "Central 02 - Sala 201", area: 54.0, capAtual: 50, capExp: 48 },
+            { id: "r5", bloco: "Central 02", ambiente: "Central 02 - Sala 202", area: 54.0, capAtual: 50, capExp: 48 },
+            { id: "r6", bloco: "Central 03", ambiente: "Central 03 - Sala 301", area: 62.5, capAtual: 55, capExp: 52 },
+            { id: "r7", bloco: "Central 03", ambiente: "Central 03 - Lab. Info 05", area: 58.0, capAtual: 42, capExp: 45 },
+            { id: "r8", bloco: "Central 04", ambiente: "Central 04 - Sala 401", area: 78.0, capAtual: 70, capExp: 65 },
+            { id: "r9", bloco: "Central 04", ambiente: "Central 04 - Sala 402", area: 78.0, capAtual: 70, capExp: 65 },
+            { id: "r10", bloco: "Central 04", ambiente: "Central 04 - Sala 405", area: 85.0, capAtual: 80, capExp: 72 },
+            { id: "r11", bloco: "Central 05", ambiente: "Central 05 - Sala 501", area: 64.0, capAtual: 55, capExp: 54 },
+            { id: "r12", bloco: "Central 06", ambiente: "Central 06 - 601", area: 63.36, capAtual: 55, capExp: 53 },
+            { id: "r13", bloco: "Central 06", ambiente: "Central 06 - 602", area: 47.52, capAtual: 30, capExp: 40 },
+            { id: "r14", bloco: "Central 06", ambiente: "Central 06 - 603", area: 63.36, capAtual: 60, capExp: 53 },
+            { id: "r15", bloco: "Central 06", ambiente: "Central 06 - 604", area: 63.36, capAtual: 60, capExp: 53 },
+            { id: "r16", bloco: "Central 06", ambiente: "Central 06 - Clínica Odonto A", area: 140.0, capAtual: 60, capExp: 65 },
+            { id: "r17", bloco: "Central 07", ambiente: "Central 07 - Sala 701", area: 70.0, capAtual: 60, capExp: 58 },
+            { id: "r18", bloco: "Central 07", ambiente: "Central 07 - Sala 704", area: 92.0, capAtual: 85, capExp: 80 },
+            { id: "r19", bloco: "Central L", ambiente: "Central L - Lab. Morfofuncional", area: 82.0, capAtual: 50, capExp: 55 },
+            { id: "r20", bloco: "Centro Vet.", ambiente: "Centro Vet. - Sala 01", area: 75.0, capAtual: 60, capExp: 62 },
+            { id: "r21", bloco: "AV: Remoto / Externo", ambiente: "AV: Remoto", area: 0, capAtual: 999, capExp: 999 }
+        ];
+
+        // Base de Disciplinas Iniciais (Com Direito 7º Termo, Odontologia 9º Termo, etc.)
+        const INITIAL_COURSES = [
+            // Direito - 7º Termo Noturno (Segunda a Sexta)
+            { id: "dir_1", curso: "Direito", turno: "Noturno", serie: 7, codigo: "DIR701", disciplina: "Prática Jurídica Cível e Processo Eletrônico", dia: "Segunda-Feira", horario: "19:15 às 22:50", alunos: 52, ambiente: "Central 04 - Sala 401", obs: "Prof. Dr. Roberto", color: "#8c2d38" },
+            { id: "dir_2", curso: "Direito", turno: "Noturno", serie: 7, codigo: "DIR702", disciplina: "Direito Processual do Trabalho", dia: "Terça-Feira", horario: "19:15 às 22:50", alunos: 50, ambiente: "Central 04 - Sala 401", obs: "Profª. Dra. Mariana", color: "#363b74" },
+            { id: "dir_3", curso: "Direito", turno: "Noturno", serie: 7, codigo: "DIR703", disciplina: "Direito Empresarial Avançado e Falências", dia: "Quarta-Feira", horario: "19:15 às 22:50", alunos: 54, ambiente: "Central 04 - Sala 401", obs: "Prof. Alexandre", color: "#2c6b9e" },
+            { id: "dir_4", curso: "Direito", turno: "Noturno", serie: 7, codigo: "DIR704", disciplina: "Direito Tributário e Prática Fiscal", dia: "Quinta-Feira", horario: "19:15 às 22:50", alunos: 52, ambiente: "Central 04 - Sala 402", obs: "Prof. Fernando", color: "#682973" },
+            { id: "dir_5", curso: "Direito", turno: "Noturno", serie: 7, codigo: "DIR705", disciplina: "Estágio Prático Supervisionado (NPJ)", dia: "Sexta-Feira", horario: "19:15 às 22:50", alunos: 48, ambiente: "Central 03 - Sala 301", obs: "Núcleo de Prática Jurídica", color: "#a88434" },
+            { id: "dir_6", curso: "Direito", turno: "Noturno", serie: 7, codigo: "DIR706", disciplina: "Trabalho de Curso I (Metodologia Jurídica)", dia: "A Definir", horario: "19:15 às 22:50", alunos: 50, ambiente: "A Definir", obs: "Sem dia definido", color: "#523f38" },
+
+            // Odontologia - 9º Termo Noturno (Conforme a imagem enviada)
+            { id: "odo_1", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D1-Estágio", disciplina: "Estágio em Clínica Integrada (Ana)", dia: "Segunda-Feira", horario: "19:15 às 22:50", alunos: 42, ambiente: "Central 06 - Clínica Odonto A", obs: "Profª. Ana", color: "#8c2d38" },
+            { id: "odo_2", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D3-Estágio", disciplina: "Estágio Supervisionado Geral (Nathalia)", dia: "Segunda-Feira", horario: "19:15 às 22:50", alunos: 38, ambiente: "Central 06 - 601", obs: "Profª. Nathalia", color: "#363b74" },
+            { id: "odo_3", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D4-Estágio", disciplina: "Estágio Clínico Especializado (Carla)", dia: "Segunda-Feira", horario: "19:15 às 22:50", alunos: 40, ambiente: "Central 06 - 603", obs: "Profª. Carla", color: "#2c6b9e" },
+            { id: "odo_4", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D5-Estágio", disciplina: "Estágio Endodontia (Caique)", dia: "Segunda-Feira", horario: "19:15 às 22:50", alunos: 36, ambiente: "Central 06 - 604", obs: "Prof. Caique", color: "#1b796a" },
+            { id: "odo_5", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D1-Estágio", disciplina: "Clínica Integrada II (Ana)", dia: "Terça-Feira", horario: "19:15 às 22:50", alunos: 42, ambiente: "Central 06 - Clínica Odonto A", obs: "Profª. Ana", color: "#8c2d38" },
+            { id: "odo_6", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D2-Estágio", disciplina: "Odontopediatria Clínica (Jayne)", dia: "Terça-Feira", horario: "19:15 às 22:50", alunos: 40, ambiente: "Central 06 - 601", obs: "Profª. Jayne", color: "#2c6b9e" },
+            { id: "odo_7", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D8-Estágio", disciplina: "Cirurgia e Traumatologia (Marcio)", dia: "Terça-Feira", horario: "19:15 às 22:50", alunos: 44, ambiente: "Central 06 - 603", obs: "Prof. Marcio", color: "#638436" },
+            { id: "odo_8", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D10-Estági", disciplina: "Saúde Coletiva (A Contratar)", dia: "Terça-Feira", horario: "19:15 às 22:50", alunos: 35, ambiente: "Central 06 - 602", obs: "Docente a definir", color: "#523f38" },
+            { id: "odo_9", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D2-Estágio", disciplina: "Odontopediatria Avançada (Jayne)", dia: "Quarta-Feira", horario: "19:15 às 22:50", alunos: 40, ambiente: "Central 06 - 601", obs: "Profª. Jayne", color: "#2c6b9e" },
+            { id: "odo_10", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D6-Estágio", disciplina: "Periodontia Clínica (Christiane)", dia: "Quarta-Feira", horario: "19:15 às 22:50", alunos: 41, ambiente: "Central 06 - 603", obs: "Profª. Christiane", color: "#a88434" },
+            { id: "odo_11", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D7-Estágio", disciplina: "Diagnóstico Bucal (Marina)", dia: "Quarta-Feira", horario: "19:15 às 22:50", alunos: 39, ambiente: "Central 06 - 604", obs: "Profª. Marina", color: "#363b74" },
+            { id: "odo_12", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D9-Estágio", disciplina: "Pacientes com Necessidades Especiais (Júlia)", dia: "Quarta-Feira", horario: "19:15 às 22:50", alunos: 42, ambiente: "Central 06 - 602", obs: "Profª. Júlia", color: "#a88434" },
+            { id: "odo_13", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D1-Est.Sup", disciplina: "Estágio Supervisionado III (Juliana)", dia: "Quinta-Feira", horario: "19:15 às 22:50", alunos: 42, ambiente: "Central 06 - Clínica Odonto A", obs: "Profª. Juliana", color: "#8c2d38" },
+            { id: "odo_14", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D2-Est.Sup", disciplina: "Prótese e Reabilitação (Priscilla)", dia: "Quinta-Feira", horario: "19:15 às 22:50", alunos: 38, ambiente: "Central 06 - 601", obs: "Profª. Priscilla", color: "#638436" },
+            { id: "odo_15", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D3-Est.Sup", disciplina: "Clínica Infantil II (Bianca)", dia: "Quinta-Feira", horario: "19:15 às 22:50", alunos: 40, ambiente: "Central 06 - 603", obs: "Profª. Bianca", color: "#2c6b9e" },
+            { id: "odo_16", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D4-Est.Sup", disciplina: "Clínica Multidisciplinar (Isabela)", dia: "Quinta-Feira", horario: "19:15 às 22:50", alunos: 37, ambiente: "Central 06 - 604", obs: "Profª. Isabela", color: "#682973" },
+            { id: "odo_17", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "Trabalho d", disciplina: "Trabalho de Conclusão de Curso (Jussaro)", dia: "Sexta-Feira", horario: "19:15 às 22:50", alunos: 45, ambiente: "Central 06 - 601", obs: "Prof. Jussaro", color: "#a88434" },
+            { id: "odo_18", curso: "Odontologia", turno: "Noturno", serie: 9, codigo: "D1-EA-Saúd", disciplina: "Estágio em Saúde Extra-Muros (Joao)", dia: "Sábado", horario: "19:15 às 22:50", alunos: 42, ambiente: "Central 06 - 601", obs: "Prof. Joao", color: "#8c2d38" },
+
+            // Outros cursos de exemplo
+            { id: "esw_1", curso: "Engenharia de Software", turno: "Noturno", serie: 3, codigo: "ESW301", disciplina: "Estruturas de Dados Avançadas", dia: "Segunda-Feira", horario: "19:15 às 22:50", alunos: 38, ambiente: "Central 03 - Lab. Info 05", obs: "Laboratório", color: "#363b74" },
+            { id: "adm_1", curso: "Administração", turno: "Noturno", serie: 1, codigo: "ADM101", disciplina: "Teorias da Administração Geral", dia: "Terça-Feira", horario: "19:15 às 22:50", alunos: 48, ambiente: "Central 02 - Sala 201", obs: "", color: "#2c6b9e" }
+        ];
+
+        // Estado Global da Aplicação
+        let state = {
+            courses: JSON.parse(JSON.stringify(INITIAL_COURSES)),
+            rooms: JSON.parse(JSON.stringify(INITIAL_ROOMS)),
+            showRoomDetails: true,
+            mainView: "grid",
+            selectedBlockTab: "ALL",
+            filters: {
+                course: "ALL",
+                turno: "ALL",
+                serie: "ALL",
+                bloco: "ALL",
+                search: ""
+            }
+        };
+
+        // Salvar e Carregar no LocalStorage para persistência no navegador
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem("ensalamento_2027_data", JSON.stringify({
+                    courses: state.courses,
+                    rooms: state.rooms
+                }));
+            } catch (e) {
+                console.warn("Não foi possível salvar no localStorage", e);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem("ensalamento_2027_data");
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.courses && parsed.courses.length > 0) state.courses = parsed.courses;
+                    if (parsed.rooms && parsed.rooms.length > 0) state.rooms = parsed.rooms;
+                }
+            } catch (e) {
+                console.warn("Erro ao carregar do localStorage", e);
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById("toastNotification");
+            document.getElementById("toastText").textContent = msg;
+            toast.classList.remove("opacity-0", "pointer-events-none", "translate-y-2");
+            setTimeout(() => {
+                toast.classList.add("opacity-0", "pointer-events-none", "translate-y-2");
+            }, 3000);
+        }
+
+        function getRoomObject(ambienteStr) {
+            if (!ambienteStr) return null;
+            return state.rooms.find(r => r.ambiente === ambienteStr) || null;
+        }
+
+        function getBlockFromAmbiente(ambienteStr) {
+            if (!ambienteStr || ambienteStr === "A Definir") return "Sem Sala";
+            const roomObj = getRoomObject(ambienteStr);
+            if (roomObj && roomObj.bloco) return roomObj.bloco;
+            if (ambienteStr.includes(" - ")) return ambienteStr.split(" - ")[0].trim();
+            return "Outros";
+        }
+
+        function checkRoomConflict(courseItem) {
+            if (!courseItem.ambiente || courseItem.ambiente === "A Definir" || courseItem.ambiente.startsWith("AV:") || courseItem.dia === "A Definir") {
+                return [];
+            }
+            return state.courses.filter(other =>
+                other.id !== courseItem.id &&
+                other.ambiente === courseItem.ambiente &&
+                other.dia === courseItem.dia &&
+                (other.horario === courseItem.horario || other.horario === "19:15 às 22:50" || courseItem.horario === "19:15 às 22:50")
+            );
+        }
+
+        function evaluateRoomCapacityStatus(alunos, roomObj, hasConflict) {
+            if (hasConflict) {
+                return { status: "conflict", label: "Conflito de Horário!", badgeClass: "bg-rose-600 text-white" };
+            }
+            if (!roomObj) {
+                return { status: "none", label: "Sala não mapeada", badgeClass: "bg-slate-600 text-white" };
+            }
+            const qty = Number(alunos) || 0;
+            const cap = Number(roomObj.capAtual) || 0;
+            const exp = Number(roomObj.capExp) || 0;
+            const maxAllowed = Math.max(cap, exp);
+
+            if (qty <= cap) {
+                return { status: "ok", label: `OK (${qty}/${cap})`, badgeClass: "bg-emerald-600 text-white" };
+            } else if (qty <= maxAllowed) {
+                return { status: "expanded", label: `Cap. Exp (${qty}/${maxAllowed})`, badgeClass: "bg-amber-500 text-slate-900 font-bold" };
+            } else {
+                return { status: "over", label: `Acima da Cap (${qty}/${maxAllowed})`, badgeClass: "bg-rose-600 text-white font-bold" };
+            }
+        }
+
+        // Popula os selects de filtros mantendo seleções válidas
+        function populateFilterDropdowns() {
+            const courseSel = document.getElementById("filterCourse");
+            const serieSel = document.getElementById("filterSerie");
+            const blocoSel = document.getElementById("filterBloco");
+
+            const uniqueCourses = [...new Set(state.courses.map(c => c.curso).filter(Boolean))].sort();
+            const uniqueBlocos = [...new Set(state.rooms.map(r => r.bloco).filter(Boolean))].sort();
+
+            // Opções de Cursos
+            courseSel.innerHTML = `<option value="ALL">📚 Todos os Cursos (Mostrar Juntos)</option>` +
+                uniqueCourses.map(c => `<option value="${c}">${c}</option>`).join("");
+            courseSel.value = state.filters.course;
+
+            // Opções de Séries (baseadas no curso atual ou todas)
+            let seriesPool = state.courses;
+            if (state.filters.course !== "ALL") {
+                seriesPool = seriesPool.filter(c => c.curso === state.filters.course);
+            }
+            const uniqueSeries = [...new Set(seriesPool.map(c => String(c.serie)).filter(Boolean))].sort((a, b) => Number(a) - Number(b));
+
+            serieSel.innerHTML = `<option value="ALL">🎓 Todas as Séries/Termos</option>` +
+                uniqueSeries.map(s => `<option value="${s}">${s}º Termo / Série</option>`).join("");
+            serieSel.value = state.filters.serie;
+
+            // Opções de Blocos
+            blocoSel.innerHTML = `<option value="ALL">🏢 Todos os Blocos</option>` +
+                uniqueBlocos.map(b => `<option value="${b}">${b}</option>`).join("");
+            blocoSel.value = state.filters.bloco;
+
+            document.getElementById("filterTurno").value = state.filters.turno;
+        }
+
+        function handleFilterChange(type) {
+            if (type === 'course') {
+                state.filters.course = document.getElementById("filterCourse").value;
+                // Ao trocar de curso, reseta a série para ALL para evitar filtro vazio
+                state.filters.serie = "ALL";
+                populateFilterDropdowns();
+            } else if (type === 'turno') {
+                state.filters.turno = document.getElementById("filterTurno").value;
+            } else if (type === 'serie') {
+                state.filters.serie = document.getElementById("filterSerie").value;
+            } else if (type === 'bloco') {
+                state.filters.bloco = document.getElementById("filterBloco").value;
+            }
+            renderAll();
+        }
+
+        function applyFilters() {
+            state.filters.search = document.getElementById("filterSearch").value;
+            renderAll();
+        }
+
+        window.resetAllFilters = function() {
+            state.filters = {
+                course: "ALL",
+                turno: "ALL",
+                serie: "ALL",
+                bloco: "ALL",
+                search: ""
+            };
+            document.getElementById("filterSearch").value = "";
+            populateFilterDropdowns();
+            renderAll();
+            showToast("Todos os filtros foram limpos!");
+        };
+
+        function getFilteredCourses() {
+            return state.courses.filter(item => {
+                if (state.filters.course !== "ALL" && item.curso !== state.filters.course) return false;
+                if (state.filters.turno !== "ALL" && item.turno !== state.filters.turno) return false;
+                if (state.filters.serie !== "ALL" && String(item.serie) !== String(state.filters.serie)) return false;
+                if (state.filters.bloco !== "ALL") {
+                    const itemBloco = getBlockFromAmbiente(item.ambiente);
+                    if (itemBloco !== state.filters.bloco) return false;
+                }
+                if (state.filters.search) {
+                    const q = state.filters.search.toLowerCase();
+                    const match =
+                        (item.curso || "").toLowerCase().includes(q) ||
+                        (item.codigo || "").toLowerCase().includes(q) ||
+                        (item.disciplina || "").toLowerCase().includes(q) ||
+                        (item.ambiente || "").toLowerCase().includes(q) ||
+                        (item.obs || "").toLowerCase().includes(q);
+                    if (!match) return false;
+                }
+                return true;
+            });
+        }
+
+        // Gera o HTML de um Card de Disciplina com ou sem informações técnicas de sala
+        function createCourseCardHTML(item) {
+            const roomObj = getRoomObject(item.ambiente);
+            const conflicts = checkRoomConflict(item);
+            const capStatus = evaluateRoomCapacityStatus(item.alunos, roomObj, conflicts.length > 0);
+            const bgColor = item.color || "#8c2d38";
+
+            let roomInfoSection = "";
+            if (state.showRoomDetails) {
+                const areaTxt = roomObj ? `${roomObj.area} m²` : "—";
+                const capTxt = roomObj ? `Cap: ${roomObj.capAtual}` : "Sem métrica";
+                roomInfoSection = `
+                    <div class="mt-2 pt-1.5 border-t border-white/20 text-[10px] space-y-1 bg-black/20 -mx-2.5 -mb-2 p-2 rounded-b">
+                        <div class="flex items-center justify-between gap-1">
+                            <span class="font-semibold text-white flex items-center gap-1 truncate" title="${item.ambiente || 'A Definir'}">
+                                <i class="fa-solid fa-location-dot text-amber-300"></i> ${item.ambiente || "Sem Sala Definida"}
+                            </span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] shrink-0 font-bold ${capStatus.badgeClass}">${capStatus.label}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-white/80">
+                            <span>📐 ${areaTxt}</span>
+                            <span>👥 ${capTxt}</span>
+                        </div>
+                        ${conflicts.length > 0 ? `<div class="text-[9px] bg-rose-700 text-white px-1.5 py-0.5 rounded font-bold">⚠️ Conflito de Sala</div>` : ''}
+                    </div>
+                `;
+            }
+
+            return `
+                <div draggable="true"
+                     ondragstart="handleDragStart(event, '${item.id}')"
+                     ondragend="handleDragEnd(event)"
+                     onclick="openEditModal('${item.id}')"
+                     style="background-color: ${bgColor};"
+                     class="ens-card text-white rounded-lg p-2.5 shadow cursor-grab active:cursor-grabbing select-none relative group border border-black/20">
+                    <div class="flex items-start justify-between gap-1">
+                        <span class="font-bold text-xs tracking-tight">${item.codigo || "DISC"}</span>
+                        <span class="text-[10px] bg-black/30 px-1.5 py-0.5 rounded-full font-bold shrink-0">
+                            <i class="fa-solid fa-users text-[9px]"></i> ${item.alunos || 0}
+                        </span>
+                    </div>
+                    <div class="text-[11px] text-white/95 font-medium leading-snug mt-1 line-clamp-2" title="${item.disciplina}">
+                        ${item.disciplina}
+                    </div>
+                    <div class="mt-1 flex items-center justify-between text-[10px] text-white/75 font-semibold">
+                        <span class="truncate">${item.curso} • ${item.serie}ºT</span>
+                        <i class="fa-solid fa-pen-to-square opacity-0 group-hover:opacity-100 transition text-white"></i>
+                    </div>
+                    ${roomInfoSection}
+                </div>
+            `;
+        }
+
+        // Renderiza a Grade Semanal
+        function renderScheduleGrid() {
+            const filtered = getFilteredCourses();
+            document.getElementById("statsCounter").textContent = `${filtered.length} disciplinas exibidas`;
+
+            const scopeTitle = state.filters.course === "ALL"
+                ? "Todos os Cursos"
+                : `${state.filters.course} ${state.filters.serie !== "ALL" ? '(' + state.filters.serie + 'º Termo)' : ''}`;
+            document.getElementById("currentScopeLabel").textContent = scopeTitle;
+
+            // Coluna "A Definir"
+            const unassigned = filtered.filter(c => !c.dia || c.dia === "A Definir");
+            document.getElementById("unassignedBadge").textContent = unassigned.length;
+            const unassignedZone = document.getElementById("unassignedDropZone");
+            if (unassigned.length === 0) {
+                unassignedZone.innerHTML = `
+                    <div class="h-44 border-2 border-dashed border-slate-400 rounded-xl flex flex-col items-center justify-center text-center p-4 text-slate-500 text-xs">
+                        <i class="fa-solid fa-circle-check text-emerald-600 text-2xl mb-1.5"></i>
+                        Todas as disciplinas filtradas possuem dia da semana atribuído!
+                    </div>
+                `;
+            } else {
+                unassignedZone.innerHTML = unassigned.map(c => createCourseCardHTML(c)).join("");
+            }
+
+            // Horários Padrão
+            const timeSlots = [
+                { id: "slot1", label: "19:15\n22:50", fullSlot: "19:15 às 22:50", subtitle: "Noturno Completo" },
+                { id: "slot2", label: "19:15\n20:55", fullSlot: "19:15 às 20:55", subtitle: "1º Bloco Noturno" },
+                { id: "slot3", label: "21:10\n22:50", fullSlot: "21:10 às 22:50", subtitle: "2º Bloco Noturno" },
+                { id: "slot4", label: "08:20\n11:50", fullSlot: "08:20 às 11:50", subtitle: "Matutino / Integral" }
+            ];
+
+            const daysColumns = [
+                "Segunda-Feira",
+                "Terça-Feira",
+                "Quarta-Feira",
+                "Quinta-Feira",
+                "Sexta-Feira",
+                "Sábado"
+            ];
+
+            const container = document.getElementById("timetableRowsContainer");
+            container.innerHTML = timeSlots.map(slot => {
+                const dayCellsHTML = daysColumns.map(dayName => {
+                    const cellCourses = filtered.filter(c => {
+                        if (c.dia !== dayName) return false;
+                        if (slot.fullSlot === "19:15 às 22:50") {
+                            return c.horario === "19:15 às 22:50" || !c.horario || c.horario === "A Definir";
+                        }
+                        return c.horario === slot.fullSlot;
+                    });
+
+                    return `
+                        <div ondragover="handleDragOver(event)"
+                             ondragleave="handleDragLeave(event)"
+                             ondrop="handleDropOnDay(event, '${dayName}', '${slot.fullSlot}')"
+                             class="min-h-[175px] bg-[#d3d8df]/80 hover:bg-slate-200 rounded-lg p-2 space-y-2 transition border border-slate-300">
+                            ${cellCourses.map(c => createCourseCardHTML(c)).join("")}
+                        </div>
+                    `;
+                }).join("");
+
+                return `
+                    <div class="grid grid-cols-7 gap-2 p-2.5 items-stretch">
+                        <div class="flex flex-col items-center justify-center text-center border-r border-slate-400/80 pr-2">
+                            <div class="text-xs font-bold text-slate-800 whitespace-pre-line leading-tight">${slot.label}</div>
+                            <span class="text-[10px] text-slate-600 mt-1 font-semibold">${slot.subtitle}</span>
+                        </div>
+                        ${dayCellsHTML}
+                    </div>
+                `;
+            }).join("");
+        }
+
+        // Renderiza o Mapa de Salas por Bloco
+        function renderBlocksView() {
+            const uniqueBlocks = ["ALL", ...new Set(state.rooms.map(r => r.bloco).filter(Boolean))];
+            const tabsBar = document.getElementById("blockTabsBar");
+            tabsBar.innerHTML = uniqueBlocks.map(b => {
+                const active = state.selectedBlockTab === b;
+                const label = b === "ALL" ? "🏢 Todos os Blocos" : b;
+                return `
+                    <button onclick="selectBlockTab('${b}')"
+                            class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${active ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+                        ${label}
+                    </button>
+                `;
+            }).join("");
+
+            const roomsToShow = state.rooms.filter(r => {
+                if (state.selectedBlockTab !== "ALL" && r.bloco !== state.selectedBlockTab) return false;
+                if (state.filters.search) {
+                    const q = state.filters.search.toLowerCase();
+                    return r.ambiente.toLowerCase().includes(q) || r.bloco.toLowerCase().includes(q);
+                }
+                return true;
+            });
+
+            const daysOrder = ["Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sábado"];
+            const grid = document.getElementById("blocksGridContent");
+
+            grid.innerHTML = roomsToShow.map(room => {
+                const roomCourses = state.courses.filter(c => c.ambiente === room.ambiente && c.dia !== "A Definir");
+
+                const technicalHeader = state.showRoomDetails ? `
+                    <div class="grid grid-cols-3 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-center my-2.5">
+                        <div>
+                            <span class="block text-[10px] text-slate-400 font-bold uppercase">Área</span>
+                            <span class="text-xs font-bold text-slate-800">${room.area || 0} m²</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] text-slate-400 font-bold uppercase">Cap. Atual</span>
+                            <span class="text-xs font-bold text-emerald-700">${room.capAtual || 0}</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] text-slate-400 font-bold uppercase">Cap. Exp</span>
+                            <span class="text-xs font-bold text-amber-700">${room.capExp || 0}</span>
+                        </div>
+                    </div>
+                ` : '';
+
+                const daysListHTML = daysOrder.map(dayName => {
+                    const allocs = roomCourses.filter(c => c.dia === dayName);
+                    const shortDay = dayName.replace("-Feira", "");
+
+                    if (allocs.length === 0) {
+                        return `
+                            <div ondragover="handleDragOver(event)"
+                                 ondragleave="handleDragLeave(event)"
+                                 ondrop="handleDropOnRoomCard(event, '${room.ambiente}', '${dayName}')"
+                                 class="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-emerald-50/70 border border-dashed border-emerald-200 text-[11px]">
+                                <span class="font-bold text-slate-600 w-16">${shortDay}</span>
+                                <span class="text-emerald-700 font-semibold flex items-center gap-1">
+                                    <i class="fa-solid fa-check"></i> Livre (Arraste aqui)
+                                </span>
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        <div ondragover="handleDragOver(event)"
+                             ondragleave="handleDragLeave(event)"
+                             ondrop="handleDropOnRoomCard(event, '${room.ambiente}', '${dayName}')"
+                             class="p-1.5 rounded-md bg-slate-100 border border-slate-200 space-y-1">
+                            <div class="text-[10px] font-bold text-slate-600 px-1">${shortDay}</div>
+                            ${allocs.map(a => `
+                                <div onclick="openEditModal('${a.id}')"
+                                     style="background-color: ${a.color || '#363b74'}"
+                                     class="text-white px-2 py-1 rounded text-[11px] font-medium flex items-center justify-between gap-1 shadow-2xs cursor-pointer">
+                                    <span class="truncate"><strong>${a.curso} (${a.serie}ºT):</strong> ${a.disciplina}</span>
+                                    <span class="bg-black/30 px-1 rounded text-[10px] font-bold shrink-0">${a.alunos} al.</span>
+                                </div>
+                            `).join("")}
+                        </div>
+                    `;
+                }).join("");
+
+                return `
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">${room.bloco}</span>
+                                    <h4 class="text-sm font-bold text-slate-900 mt-1">${room.ambiente}</h4>
+                                </div>
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${roomCourses.length > 0 ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}">
+                                    ${roomCourses.length}/6 dias ocupados
+                                </span>
+                            </div>
+                            ${technicalHeader}
+                            <div class="space-y-1.5 mt-2">
+                                ${daysListHTML}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        // Renderiza o Navegador em Árvore da Direita
+        function renderRightTree() {
+            const query = (document.getElementById("treeSearchInput").value || "").toLowerCase();
+            const container = document.getElementById("courseTreeContainer");
+
+            const turnosMap = {};
+            state.courses.forEach(item => {
+                const textMatch = !query ||
+                    (item.curso || "").toLowerCase().includes(query) ||
+                    (item.disciplina || "").toLowerCase().includes(query) ||
+                    (`${item.serie}º termo`).includes(query);
+
+                if (!textMatch) return;
+
+                const t = item.turno || "Noturno";
+                const c = item.curso || "Sem Curso";
+                const s = String(item.serie || "1");
+
+                if (!turnosMap[t]) turnosMap[t] = {};
+                if (!turnosMap[t][c]) turnosMap[t][c] = new Set();
+                turnosMap[t][c].add(s);
+            });
+
+            let html = `<div class="font-bold text-slate-800 py-1 flex items-center gap-1.5"><i class="fa-solid fa-caret-down text-slate-500"></i> Ourinhos (Unifio)</div>`;
+
+            Object.keys(turnosMap).sort().forEach(turno => {
+                html += `<div class="pl-3 space-y-1">
+                    <div class="font-bold text-slate-600 flex items-center gap-1.5 py-0.5">
+                        <i class="fa-solid fa-caret-down text-slate-400"></i> ${turno}
+                    </div>`;
+
+                Object.keys(turnosMap[turno]).sort().forEach(curso => {
+                    const seriesList = [...turnosMap[turno][curso]].sort((a, b) => Number(a) - Number(b));
+                    const isCourseSelected = state.filters.course === curso && state.filters.serie === "ALL";
+
+                    html += `
+                        <div class="pl-3 space-y-0.5">
+                            <div onclick="selectCourseTreeItem('${turno}', '${curso}', 'ALL')"
+                                 class="cursor-pointer px-2 py-1 rounded-md flex items-center justify-between ${isCourseSelected ? 'bg-blue-100 text-blue-900 font-bold' : 'hover:bg-slate-100 text-slate-700 font-medium'}">
+                                <span><i class="fa-solid fa-graduation-cap text-blue-600 mr-1.5"></i> ${curso} (Todos)</span>
+                            </div>
+                            <div class="pl-3 space-y-0.5 border-l border-slate-200 ml-2">
+                                ${seriesList.map(serie => {
+                                    const active = state.filters.course === curso && String(state.filters.serie) === String(serie);
+                                    const termCourses = state.courses.filter(x => x.curso === curso && String(x.serie) === String(serie));
+                                    const allAssigned = termCourses.length > 0 && termCourses.every(x => x.dia && x.dia !== "A Definir");
+                                    const icon = allAssigned
+                                        ? `<i class="fa-solid fa-circle-check text-emerald-600"></i>`
+                                        : `<i class="fa-regular fa-clock text-amber-500"></i>`;
+                                    return `
+                                        <div onclick="selectCourseTreeItem('${turno}', '${curso}', '${serie}')"
+                                             class="cursor-pointer px-2 py-1 rounded-md flex items-center gap-2 transition ${active ? 'bg-orange-100 text-orange-950 font-bold border-l-2 border-orange-500' : 'hover:bg-slate-100 text-slate-600'}">
+                                            ${icon}
+                                            <span class="truncate">${serie}º Termo de ${curso}</span>
+                                        </div>
+                                    `;
+                                }).join("")}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function renderAll() {
+            renderScheduleGrid();
+            renderBlocksView();
+            renderRightTree();
+        }
+
+        // Funções de Interação e UI
+        window.switchMainView = function(view) {
+            state.mainView = view;
+            const gridContainer = document.getElementById("viewGridContainer");
+            const blocksContainer = document.getElementById("viewBlocksContainer");
+            const btnGrid = document.getElementById("btnViewGrid");
+            const btnBlocks = document.getElementById("btnViewBlocks");
+
+            if (view === "grid") {
+                gridContainer.classList.remove("hidden");
+                gridContainer.classList.add("flex");
+                blocksContainer.classList.add("hidden");
+                blocksContainer.classList.remove("flex");
+
+                btnGrid.className = "px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 bg-blue-600 text-white shadow-xs";
+                btnBlocks.className = "px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 text-slate-700 hover:bg-slate-200";
+                renderScheduleGrid();
+            } else {
+                gridContainer.classList.add("hidden");
+                gridContainer.classList.remove("flex");
+                blocksContainer.classList.remove("hidden");
+                blocksContainer.classList.add("flex");
+
+                btnBlocks.className = "px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 bg-blue-600 text-white shadow-xs";
+                btnGrid.className = "px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 text-slate-700 hover:bg-slate-200";
+                renderBlocksView();
+            }
+        };
+
+        window.toggleRoomDetails = function() {
+            state.showRoomDetails = !state.showRoomDetails;
+            const btn = document.getElementById("btnToggleRoomInfo");
+            const icon = document.getElementById("iconRoomInfo");
+            const txt = document.getElementById("txtRoomInfo");
+
+            if (state.showRoomDetails) {
+                btn.className = "px-3 py-1.5 rounded-full text-xs font-bold border transition flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100";
+                icon.className = "fa-solid fa-eye";
+                txt.textContent = "Ocultar Info da Sala";
+            } else {
+                btn.className = "px-3 py-1.5 rounded-full text-xs font-bold border transition flex items-center gap-1.5 bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200";
+                icon.className = "fa-solid fa-eye-slash";
+                txt.textContent = "Mostrar Info da Sala";
+            }
+            renderAll();
+        };
+
+        window.toggleRightDrawer = function() {
+            document.getElementById("rightTreeDrawer").classList.toggle("hidden");
+        };
+
+        window.clearTreeSearch = function() {
+            document.getElementById("treeSearchInput").value = "";
+            renderRightTree();
+        };
+
+        window.selectCourseTreeItem = function(turno, curso, serie) {
+            state.filters.turno = turno;
+            state.filters.course = curso;
+            state.filters.serie = serie;
+            populateFilterDropdowns();
+            renderAll();
+        };
+
+        window.selectBlockTab = function(blockName) {
+            state.selectedBlockTab = blockName;
+            renderBlocksView();
+        };
+
+        // DRAG AND DROP HANDLERS
+        let draggedCourseId = null;
+
+        window.handleDragStart = function(event, courseId) {
+            draggedCourseId = courseId;
+            event.dataTransfer.setData("text/plain", courseId);
+            event.currentTarget.classList.add("opacity-40");
+        };
+
+        window.handleDragEnd = function(event) {
+            event.currentTarget.classList.remove("opacity-40");
+        };
+
+        window.handleDragOver = function(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add("card-drop-active");
+        };
+
+        window.handleDragLeave = function(event) {
+            event.currentTarget.classList.remove("card-drop-active");
+        };
+
+        window.handleDropOnDay = function(event, targetDay, targetSlot) {
+            event.preventDefault();
+            event.currentTarget.classList.remove("card-drop-active");
+            const id = event.dataTransfer.getData("text/plain") || draggedCourseId;
+            if (!id) return;
+
+            const item = state.courses.find(c => c.id === id);
+            if (!item) return;
+
+            item.dia = targetDay;
+            if (targetSlot) {
+                item.horario = targetSlot;
+            }
+            renderAll();
+            saveToLocalStorage();
+            showToast(`${item.codigo} movido para ${targetDay}`);
+        };
+
+        window.handleDropOnRoomCard = function(event, targetRoomAmbiente, targetDay) {
+            event.preventDefault();
+            event.currentTarget.classList.remove("card-drop-active");
+            const id = event.dataTransfer.getData("text/plain") || draggedCourseId;
+            if (!id) return;
+
+            const item = state.courses.find(c => c.id === id);
+            if (!item) return;
+
+            item.ambiente = targetRoomAmbiente;
+            if (targetDay) item.dia = targetDay;
+            renderAll();
+            saveToLocalStorage();
+            showToast(`${item.codigo} alocado na sala ${targetRoomAmbiente} (${targetDay})`);
+        };
+
+        // MODAL DE EDIÇÃO
+        window.openEditModal = function(courseId) {
+            const item = state.courses.find(c => c.id === courseId);
+            if (!item) return;
+
+            document.getElementById("modalItemId").value = item.id;
+            document.getElementById("modalCurso").value = item.curso || "";
+            document.getElementById("modalTurno").value = item.turno || "Noturno";
+            document.getElementById("modalSerie").value = item.serie || 1;
+            document.getElementById("modalCodigo").value = item.codigo || "";
+            document.getElementById("modalDisciplina").value = item.disciplina || "";
+            document.getElementById("modalDia").value = item.dia || "A Definir";
+            document.getElementById("modalHorario").value = item.horario || "19:15 às 22:50";
+            document.getElementById("modalAlunos").value = item.alunos || 0;
+            document.getElementById("modalObs").value = item.obs || "";
+            document.getElementById("modalColor").value = item.color || "#8c2d38";
+            document.getElementById("btnDeleteCourse").classList.remove("hidden");
+
+            updateSuggestedRoomsInModal(item.ambiente);
+
+            const modal = document.getElementById("editModal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+        };
+
+        window.openNewCourseModal = function() {
+            const newId = "c_" + Date.now();
+            document.getElementById("modalItemId").value = newId;
+            document.getElementById("modalCurso").value = state.filters.course !== "ALL" ? state.filters.course : "Direito";
+            document.getElementById("modalTurno").value = state.filters.turno !== "ALL" ? state.filters.turno : "Noturno";
+            document.getElementById("modalSerie").value = state.filters.serie !== "ALL" ? state.filters.serie : 1;
+            document.getElementById("modalCodigo").value = "NOVA-01";
+            document.getElementById("modalDisciplina").value = "";
+            document.getElementById("modalDia").value = "Segunda-Feira";
+            document.getElementById("modalHorario").value = "19:15 às 22:50";
+            document.getElementById("modalAlunos").value = 50;
+            document.getElementById("modalObs").value = "";
+            document.getElementById("modalColor").value = SYSCLASS_PALETTE[Math.floor(Math.random() * SYSCLASS_PALETTE.length)];
+            document.getElementById("btnDeleteCourse").classList.add("hidden");
+
+            updateSuggestedRoomsInModal("A Definir");
+
+            const modal = document.getElementById("editModal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+        };
+
+        window.updateSuggestedRoomsInModal = function(preselectAmbiente) {
+            const currentId = document.getElementById("modalItemId").value;
+            const dia = document.getElementById("modalDia").value;
+            const horario = document.getElementById("modalHorario").value;
+            const alunos = Number(document.getElementById("modalAlunos").value) || 0;
+            const selectEl = document.getElementById("modalAmbiente");
+            const currentVal = preselectAmbiente !== undefined ? preselectAmbiente : selectEl.value;
+
+            const optionsHTML = state.rooms.map(r => {
+                const occupiedBy = state.courses.find(c =>
+                    c.id !== currentId &&
+                    c.ambiente === r.ambiente &&
+                    c.dia === dia &&
+                    dia !== "A Definir" &&
+                    !r.ambiente.startsWith("AV:") &&
+                    (c.horario === horario || c.horario === "19:15 às 22:50" || horario === "19:15 às 22:50")
+                );
+
+                const maxCap = Math.max(Number(r.capAtual) || 0, Number(r.capExp) || 0);
+                let statusTag = "✅ Livre";
+                if (occupiedBy) {
+                    statusTag = `⛔ Ocupada (${occupiedBy.curso} - ${occupiedBy.codigo})`;
+                } else if (alunos > maxCap && !r.ambiente.startsWith("AV:")) {
+                    statusTag = `⚠️ Menor que a turma (${maxCap} lug.)`;
+                } else if (alunos > r.capAtual && alunos <= r.capExp) {
+                    statusTag = `🟡 Cap. Expandida (${r.capExp} lug.)`;
+                }
+
+                return `<option value="${r.ambiente}">${r.ambiente} — [Cap: ${r.capAtual} | Exp: ${r.capExp} | ${r.area}m²] — ${statusTag}</option>`;
+            });
+
+            selectEl.innerHTML = `<option value="A Definir">-- Sem Sala Definida --</option>` + optionsHTML.join("");
+            if (currentVal && [...selectEl.options].some(o => o.value === currentVal)) {
+                selectEl.value = currentVal;
+            }
+            updateRoomPreviewBanner();
+        };
+
+        window.updateRoomPreviewBanner = function() {
+            const amb = document.getElementById("modalAmbiente").value;
+            const alunos = Number(document.getElementById("modalAlunos").value) || 0;
+            const banner = document.getElementById("modalRoomDetailsBanner");
+            const pill = document.getElementById("modalRoomStatusPill");
+
+            const roomObj = getRoomObject(amb);
+            if (!roomObj) {
+                banner.innerHTML = `<span>Nenhum ambiente físico vinculado.</span>`;
+                pill.textContent = "A Definir";
+                pill.className = "text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700";
+                return;
+            }
+
+            const status = evaluateRoomCapacityStatus(alunos, roomObj, false);
+            pill.textContent = status.label;
+            pill.className = `text-[11px] font-bold px-2 py-0.5 rounded-full ${status.badgeClass}`;
+
+            banner.innerHTML = `
+                <span><strong>Bloco:</strong> ${roomObj.bloco}</span>
+                <span><strong>Área:</strong> ${roomObj.area} m²</span>
+                <span><strong>Capacidade Atual:</strong> ${roomObj.capAtual} alunos</span>
+                <span><strong>Cap. Expandida:</strong> ${roomObj.capExp} alunos</span>
+            `;
+        };
+
+        window.saveModalCourse = function() {
+            const id = document.getElementById("modalItemId").value;
+            const existingIndex = state.courses.findIndex(c => c.id === id);
+
+            const updatedObj = {
+                id,
+                curso: document.getElementById("modalCurso").value.trim() || "Curso",
+                turno: document.getElementById("modalTurno").value,
+                serie: Number(document.getElementById("modalSerie").value) || 1,
+                codigo: document.getElementById("modalCodigo").value.trim() || "DISC",
+                disciplina: document.getElementById("modalDisciplina").value.trim() || "Disciplina",
+                dia: document.getElementById("modalDia").value,
+                horario: document.getElementById("modalHorario").value,
+                alunos: Number(document.getElementById("modalAlunos").value) || 0,
+                ambiente: document.getElementById("modalAmbiente").value,
+                obs: document.getElementById("modalObs").value.trim(),
+                color: document.getElementById("modalColor").value
+            };
+
+            if (existingIndex >= 0) {
+                state.courses[existingIndex] = updatedObj;
+            } else {
+                state.courses.push(updatedObj);
+            }
+
+            closeEditModal();
+            populateFilterDropdowns();
+            renderAll();
+            saveToLocalStorage();
+            showToast("Disciplina atualizada com sucesso!");
+        };
+
+        window.deleteCurrentModalCourse = function() {
+            const id = document.getElementById("modalItemId").value;
+            state.courses = state.courses.filter(c => c.id !== id);
+            closeEditModal();
+            populateFilterDropdowns();
+            renderAll();
+            saveToLocalStorage();
+            showToast("Disciplina removida da grade.");
+        };
+
+        window.closeEditModal = function() {
+            const modal = document.getElementById("editModal");
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+        };
+
+        window.openNewRoomModal = function() {
+            document.getElementById("roomModalNome").value = "";
+            document.getElementById("roomModalArea").value = "";
+            document.getElementById("roomModalCapAtual").value = "";
+            document.getElementById("roomModalCapExp").value = "";
+            const modal = document.getElementById("newRoomModal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+        };
+
+        window.closeNewRoomModal = function() {
+            const modal = document.getElementById("newRoomModal");
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+        };
+
+        window.saveNewRoom = function() {
+            const bloco = document.getElementById("roomModalBloco").value;
+            const ambiente = document.getElementById("roomModalNome").value.trim();
+            const area = Number(document.getElementById("roomModalArea").value) || 0;
+            const capAtual = Number(document.getElementById("roomModalCapAtual").value) || 0;
+            const capExp = Number(document.getElementById("roomModalCapExp").value) || capAtual;
+
+            if (!ambiente) return;
+
+            const existing = state.rooms.find(r => r.ambiente === ambiente);
+            if (existing) {
+                existing.bloco = bloco;
+                existing.area = area;
+                existing.capAtual = capAtual;
+                existing.capExp = capExp;
+            } else {
+                state.rooms.push({
+                    id: "room_" + Date.now(),
+                    bloco,
+                    ambiente,
+                    area,
+                    capAtual,
+                    capExp
+                });
+            }
+
+            closeNewRoomModal();
+            populateFilterDropdowns();
+            renderAll();
+            saveToLocalStorage();
+            showToast(`Sala ${ambiente} salva no Mapa de Salas!`);
+        };
+
+        // IMPORTAÇÃO E EXPORTAÇÃO EXCEL (.XLSX)
+        window.handleImportCronograma = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+
+                    if (!rows.length) {
+                        showToast("Planilha vazia ou formato inválido.");
+                        return;
+                    }
+
+                    const imported = [];
+                    rows.forEach((row, idx) => {
+                        const curso = String(row["Descrição3"] || row["Curso"] || "").trim();
+                        const disciplina = String(row["Descrição2"] || row["Nome Disciplina"] || row["Disciplina"] || "").trim();
+                        if (!curso && !disciplina) return;
+
+                        const ambiente = String(row["AMBIENTE"] || row["Ambiente"] || "A Definir").trim();
+
+                        imported.push({
+                            id: "imp_" + idx + "_" + Date.now(),
+                            curso: curso || "Geral",
+                            turno: String(row["Turno"] || "Noturno").trim(),
+                            serie: Number(row["Série"] || row["Serie"] || 1),
+                            codigo: String(row["Disciplina"] || `D-${idx + 1}`).trim(),
+                            disciplina: disciplina || "Disciplina",
+                            dia: String(row["Dia da Semana"] || "A Definir").trim(),
+                            horario: String(row["Horário"] || "19:15 às 22:50").trim(),
+                            alunos: Number(row["Qtd. Alunos (Turma)"] || row["Alunos"] || 0),
+                            ambiente: ambiente,
+                            obs: String(row["Observação"] || "").trim(),
+                            color: SYSCLASS_PALETTE[idx % SYSCLASS_PALETTE.length]
+                        });
+                    });
+
+                    state.courses = imported;
+                    state.filters.course = "ALL";
+                    state.filters.serie = "ALL";
+                    state.filters.turno = "ALL";
+
+                    populateFilterDropdowns();
+                    renderAll();
+                    saveToLocalStorage();
+                    showToast(`${imported.length} disciplinas carregadas da planilha!`);
+                } catch (err) {
+                    console.error(err);
+                    showToast("Erro ao ler planilha .xlsx");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = "";
+        };
+
+        window.handleImportSalas = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+
+                    const newRooms = [];
+                    rows.forEach((row, idx) => {
+                        const amb = String(row["Sala / Ambiente"] || row["AMBIENTE"] || "").trim();
+                        if (!amb) return;
+                        newRooms.push({
+                            id: "rm_imp_" + idx,
+                            bloco: String(row["Bloco"] || getBlockFromAmbiente(amb)).trim(),
+                            ambiente: amb,
+                            area: Number(row["Área (m2)"] || row["Area"] || 0),
+                            capAtual: Number(row["Cap. Atual"] || row["Capacidade"] || 0),
+                            capExp: Number(row["Cap. Expandida (m2)"] || row["Cap. Expandida"] || 0)
+                        });
+                    });
+
+                    if (newRooms.length > 0) {
+                        state.rooms = newRooms;
+                        populateFilterDropdowns();
+                        renderAll();
+                        saveToLocalStorage();
+                        showToast(`${newRooms.length} salas importadas!`);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast("Erro ao ler mapa de salas.");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = "";
+        };
+
+        window.exportCronogramaXLSX = function() {
+            const wb = XLSX.utils.book_new();
+
+            const ofertaRows = state.courses.map(c => {
+                const roomObj = getRoomObject(c.ambiente);
+                return {
+                    "Descrição3": c.curso,
+                    "Turno": c.turno,
+                    "Série": Number(c.serie),
+                    "Disciplina": c.codigo,
+                    "Descrição2": c.disciplina,
+                    "Dia da Semana": c.dia,
+                    "Horário": c.horario,
+                    "Qtd. Alunos (Turma)": Number(c.alunos) || 0,
+                    "AMBIENTE": c.ambiente,
+                    "Capacidade": roomObj ? roomObj.capAtual : "",
+                    "Área (m2)": roomObj ? roomObj.area : "",
+                    "Cap. Expandida": roomObj ? roomObj.capExp : "",
+                    "Observação": c.obs || ""
+                };
+            });
+            const wsOferta = XLSX.utils.json_to_sheet(ofertaRows);
+            XLSX.utils.book_append_sheet(wb, wsOferta, "Oferta Detalhada");
+
+            const days = ["Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sábado"];
+            const mapaRows = state.rooms.map(r => {
+                const rowObj = {
+                    "Bloco": r.bloco,
+                    "Sala / Ambiente": r.ambiente,
+                    "Área (m2)": r.area,
+                    "Cap. Atual": r.capAtual,
+                    "Cap. Expandida (m2)": r.capExp
+                };
+                days.forEach(d => {
+                    const alocados = state.courses.filter(c => c.ambiente === r.ambiente && c.dia === d);
+                    rowObj[d] = alocados.map(a => `${a.curso} (${a.serie}ºT) - ${a.disciplina}`).join(" | ") || "LIVRE";
+                });
+                return rowObj;
+            });
+            const wsMapa = XLSX.utils.json_to_sheet(mapaRows);
+            XLSX.utils.book_append_sheet(wb, wsMapa, "Mapa de Salas");
+
+            XLSX.writeFile(wb, "Ensalamento_2027_1_Atualizado.xlsx");
+            showToast("Planilha Excel (.xlsx) exportada com sucesso!");
+        };
+
+        window.resetToFactoryData = function() {
+            localStorage.removeItem("ensalamento_2027_data");
+            state.courses = JSON.parse(JSON.stringify(INITIAL_COURSES));
+            state.rooms = JSON.parse(JSON.stringify(INITIAL_ROOMS));
+            state.filters = {
+                course: "ALL",
+                turno: "ALL",
+                serie: "ALL",
+                bloco: "ALL",
+                search: ""
+            };
+            populateFilterDropdowns();
+            renderAll();
+            showToast("Dados padrão restaurados!");
+        };
+
+        // Inicialização
+        window.addEventListener("DOMContentLoaded", () => {
+            loadFromLocalStorage();
+            populateFilterDropdowns();
+            renderAll();
+        });
+    </script>
+</body>
+</html>
